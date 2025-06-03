@@ -21,9 +21,9 @@ vontatok = {f"{1000+i}{chr(65+i%26)}{chr(66+i%26)}{chr(67+i%26)}": None for i in
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Üdvözöllek! 👋 Én vagyok a Fuvartestbot, az AI alapú fuvarszervező.
-"
-        "Írd be a /help parancsot az elérhető funkciókért."
+        """Üdvözöllek! 👋 Én vagyok a Fuvartestbot, az AI alapú fuvarszervező.
+
+        Írd be a /help parancsot az elérhető funkciókért."""
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
