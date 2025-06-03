@@ -1,12 +1,1 @@
-services:
-  - type: web
-    name: fuvartestbot
-    env: python
-    plan: free
-    buildCommand: ""
-    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
-    envVars:
-      - key: TELEGRAM_TOKEN
-        fromEnvVar: TELEGRAM_TOKEN
-      - key: WEBHOOK_URL
-        fromEnvVar: WEBHOOK_URL
+
