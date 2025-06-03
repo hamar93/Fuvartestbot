@@ -1,159 +1,164 @@
+import os
+import logging
 from telegram import Update
 from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    ConversationHandler,
-    filters
+    ApplicationBuilder, CommandHandler,
+    MessageHandler, ContextTypes, filters, ConversationHandler
 )
-import logging
-import os
 
-# Logging beállítás
+# Naplózás
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
-# Környezeti változóból token beolvasás
 BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# Fuvar rögzítés lépései
-(HONNAN, HOVA, RAKLAP, IDOPONT, DIJ) = range(5)
-
-# Ideiglenes tárolók
+# Fuvar és jármű adatok
 fuvarok = []
-potkocsik = [
-    {"rendszam": "ABC123", "statusz": "üres"},
-    {"rendszam": "XYZ456", "statusz": "rakott"},
-    {"rendszam": "LMN789", "statusz": "üres"},
-    {"rendszam": "DEF321", "statusz": "rakott"},
-    {"rendszam": "JKL654", "statusz": "üres"},
-    {"rendszam": "QWE987", "statusz": "üres"},
-    {"rendszam": "RTY432", "statusz": "rakott"},
-    {"rendszam": "UIO876", "statusz": "üres"},
-    {"rendszam": "PAS111", "statusz": "rakott"},
-    {"rendszam": "ZXC222", "statusz": "üres"},
-]
+potkocsik = {f"{i:03}{chr(65 + i%3)}{chr(66 + i%3)}{chr(67 + i%3)}": "üres" for i in range(1, 11)}
+vontatok = {f"{1000+i}{chr(65 + i%5)}{chr(66 + i%4)}{chr(67 + i%3)}": None for i in range(1, 11)}
+
+# Állapotok
+(HONNAN, HOVA, MENNYI, AR) = range(4)
 
 # Start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Üdvözöllek! 👋\n\n"
-        "Én vagyok a Fuvartestbot, a mesterséges intelligencia alapú fuvarszervező asszisztensed.\n\n"
-        "Használhatod a /help parancsot, ha szeretnéd megtudni, miben tudok segíteni."
+        "Üdvözöllek! 🚛\nÉn vagyok a Fuvartestbot.\n\n"
+        "📋 Használható parancsok:\n"
+        "/help – Súgó\n"
+        "/fuvarlist – Elérhető fuvarok\n"
+        "/ujfuvar – Új fuvar feltöltése\n"
+        "/potkocsik – Pótkocsik állapota\n"
+        "/vontatok – Vontatók állapota\n"
+        "/rendeles – Fuvar kiválasztása\n"
     )
 
 # Help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🛠 Elérhető funkciók:\n"
-        "- /start – Üdvözlés\n"
-        "- /help – Ez a súgó\n"
-        "- /fuvarlist – Teszt fuvarok\n"
-        "- /ujfuvar – Új fuvarajánlat\n"
-        "- /potkocsik – Pótkocsi lista\n"
-        "- /alvo – Alvó módba kapcsolás"
+        "🛠 Elérhető parancsok:\n"
+        "/start – Indítás\n"
+        "/help – Súgó\n"
+        "/fuvarlist – Elérhető fuvarok\n"
+        "/ujfuvar – Fuvarajánlat beküldése\n"
+        "/potkocsik – Pótkocsik állapotai (rakott/üres)\n"
+        "/vontatok – Vontatók hozzárendelései\n"
+        "/rendeles – Részletes infó kért fuvarról"
     )
 
-# Fuvar lista
+# Fuvarlista
 async def fuvarlist(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    nyugat_magyar = [
-        "Berlin → Győr – 22 raklap – 880 EUR",
-        "Lyon → Szeged – 10 paletta – 770 EUR",
-        "Milano → Budapest – 33 paletta – 990 EUR",
-        "Frankfurt → Tatabánya – 12 paletta – 640 EUR",
-        "Brüsszel → Pécs – 14 raklap – 710 EUR",
-    ]
-    magyar_nyugat = [
-        "Budapest → Nürnberg – 11 raklap – 670 EUR",
-        "Győr → Paris – 18 paletta – 890 EUR",
-        "Szeged → Bologna – 6 raklap – 450 EUR",
-        "Miskolc → Düsseldorf – 20 raklap – 920 EUR",
-        "Tatabánya → Torino – 13 paletta – 770 EUR",
-    ]
-    await update.message.reply_text(
-        "📦 Fuvarajánlatok:\n\n"
-        "→ Nyugatról Magyarországra:\n" + "\n".join(nyugat_magyar) +
-        "\n\n→ Magyarországról Nyugatra:\n" + "\n".join(magyar_nyugat)
-    )
+    if not fuvarok:
+        await update.message.reply_text("Nincs még elérhető fuvar.")
+        return
+    msg = "📦 Elérhető fuvarok:\n"
+    for i, fuvar in enumerate(fuvarok, 1):
+        msg += f"{i}. {fuvar['honnan']} → {fuvar['hova']} | {fuvar['mennyiseg']} | {fuvar['ar']} EUR\n"
+    await update.message.reply_text(msg)
 
-# Fuvar indítás
-async def uj_fuvar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# Fuvarfelvitel lépései
+async def ujfuvar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("📍 Honnan indul a fuvar?")
     return HONNAN
 
-async def fuvar_honnan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def honnan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["honnan"] = update.message.text
-    await update.message.reply_text("📍 Hova tart a fuvar?")
+    await update.message.reply_text("🏁 Hová tart?")
     return HOVA
 
-async def fuvar_hova(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def hova(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["hova"] = update.message.text
-    await update.message.reply_text("📦 Hány raklap/paletta?")
-    return RAKLAP
+    await update.message.reply_text("📦 Milyen mennyiség (pl. 12 raklap)?")
+    return MENNYI
 
-async def fuvar_raklap(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["raklap"] = update.message.text
-    await update.message.reply_text("🗓 Mikorra az indulás?")
-    return IDOPONT
+async def mennyi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["mennyiseg"] = update.message.text
+    await update.message.reply_text("💶 Mekkora az ajánlott díj (EUR)?")
+    return AR
 
-async def fuvar_idopont(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["idopont"] = update.message.text
-    await update.message.reply_text("💶 Mekkora a díj?")
-    return DIJ
-
-async def fuvar_dij(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["dij"] = update.message.text
-    fuvar = context.user_data.copy()
-    fuvarok.append(fuvar)
-    await update.message.reply_text(
-        f"✅ Fuvar rögzítve:\n{fuvar['honnan']} → {fuvar['hova']}\n"
-        f"{fuvar['raklap']} raklap\nIdőpont: {fuvar['idopont']}\nDíj: {fuvar['dij']} EUR\n"
-        "Feltöltés TIMOCOM-ra szimulálva... ✅"
-    )
+async def ar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["ar"] = update.message.text
+    fuvarok.append(dict(context.user_data))
+    await update.message.reply_text("✅ Fuvar sikeresen rögzítve!")
     return ConversationHandler.END
 
-# Pótkocsi lekérdezés
-async def potkocsik_listazasa(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    szoveg = "🚛 Pótkocsik:\n"
-    for p in potkocsik:
-        szoveg += f"- {p['rendszam']}: {p['statusz']}\n"
-    await update.message.reply_text(szoveg)
+# Részletek lekérdezése
+async def rendeles(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not fuvarok:
+        await update.message.reply_text("Nincs elérhető fuvar.")
+        return
+    msg = "Melyik fuvar érdekel? Írd be a számát (pl. 1):"
+    await update.message.reply_text(msg)
+    return 0
 
-# Alvó mód
-async def alvo_mod(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Alvó módba kapcsolva. Üzenetre ébred.")
+async def rendeles_valasz(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    index = int(update.message.text) - 1
+    if 0 <= index < len(fuvarok):
+        fuvar = fuvarok[index]
+        await update.message.reply_text(
+            f"📋 Részletek:\n"
+            f"Honnan: {fuvar['honnan']}\n"
+            f"Hová: {fuvar['hova']}\n"
+            f"Mennyiség: {fuvar['mennyiseg']}\n"
+            f"Ajánlat: {fuvar['ar']} EUR\n"
+            f"AI javaslat: {'Jó ajánlat' if int(fuvar['ar']) > 600 else 'Alacsony ajánlat'}"
+        )
+    else:
+        await update.message.reply_text("❌ Érvénytelen sorszám.")
+    return ConversationHandler.END
+
+# Pótkocsik állapota
+async def potkocsik_allapot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = "🚛 Pótkocsik állapota:\n"
+    for rendszam, allapot in potkocsik.items():
+        msg += f"{rendszam}: {allapot}\n"
+    await update.message.reply_text(msg)
+
+# Vontatók állapota
+async def vontatok_allapot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = "🚚 Vontatók és hozzárendelt pótkocsik:\n"
+    for rendszam, potko in vontatok.items():
+        msg += f"{rendszam} → {potko if potko else 'nincs hozzárendelve'}\n"
+    await update.message.reply_text(msg)
+
+# Fallback / kilépés
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("🚫 Művelet megszakítva.")
+    return ConversationHandler.END
 
 # Echo fallback
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Nem értettem. Használd a /help parancsot.")
+    await update.message.reply_text("Nem értettem, használj egy parancsot. (/help)")
 
-# App build
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CommandHandler("fuvarlist", fuvarlist))
-app.add_handler(CommandHandler("potkocsik", potkocsik_listazasa))
-app.add_handler(CommandHandler("alvo", alvo_mod))
+# Fő program
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-# Fuvar beszélgetés
-fuvar_conv = ConversationHandler(
-    entry_points=[CommandHandler("ujfuvar", uj_fuvar)],
-    states={
-        HONNAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, fuvar_honnan)],
-        HOVA: [MessageHandler(filters.TEXT & ~filters.COMMAND, fuvar_hova)],
-        RAKLAP: [MessageHandler(filters.TEXT & ~filters.COMMAND, fuvar_raklap)],
-        IDOPONT: [MessageHandler(filters.TEXT & ~filters.COMMAND, fuvar_idopont)],
-        DIJ: [MessageHandler(filters.TEXT & ~filters.COMMAND, fuvar_dij)],
-    },
-    fallbacks=[]
-)
-app.add_handler(fuvar_conv)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("fuvarlist", fuvarlist))
+    app.add_handler(CommandHandler("potkocsik", potkocsik_allapot))
+    app.add_handler(CommandHandler("vontatok", vontatok_allapot))
 
-# Általános szöveg
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    app.add_handler(ConversationHandler(
+        entry_points=[CommandHandler("ujfuvar", ujfuvar)],
+        states={
+            HONNAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, honnan)],
+            HOVA: [MessageHandler(filters.TEXT & ~filters.COMMAND, hova)],
+            MENNYI: [MessageHandler(filters.TEXT & ~filters.COMMAND, mennyi)],
+            AR: [MessageHandler(filters.TEXT & ~filters.COMMAND, ar)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    ))
 
-# Indítás
-app.run_polling()
+    app.add_handler(ConversationHandler(
+        entry_points=[CommandHandler("rendeles", rendeles)],
+        states={0: [MessageHandler(filters.TEXT & ~filters.COMMAND, rendeles_valasz)]},
+        fallbacks=[CommandHandler("cancel", cancel)],
+    ))
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+
+    app.run_polling()
