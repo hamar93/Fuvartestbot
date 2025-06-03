@@ -27,7 +27,7 @@ vontatok = {f"{1000+i}{chr(65 + i%5)}{chr(66 + i%4)}{chr(67 + i%3)}": None for i
 # --- Commands ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "✈️ Üdv a Fuvartestbotnál!
+        "✈️ Üdv a Fuvartestbotnál!"
 
 "
         "Parancsok:
