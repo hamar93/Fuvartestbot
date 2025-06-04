@@ -1,15 +1,10 @@
-services:
-  - type: web
+ type: web
     name: fuvartestbot
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "uvicorn main:app --host 0.0.0.0 --port 10000"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
     envVars:
       - key: TELEGRAM_TOKEN
-        sync: false
+        value: <ADD_YOUR_TOKEN_MANUALLY>
       - key: WEBHOOK_URL
-        sync: false
-    autoDeploy: true
-    plan: free
-    runtime: python
-    region: oregon
+        value: <ADD_YOUR_WEBHOOK_URL_MANUALLY>
