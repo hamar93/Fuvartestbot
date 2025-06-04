@@ -160,7 +160,13 @@ async def on_startup():
 
 @app.post(WEBHOOK_PATH)
 async def handle(request: Request):
-    data = await request.json()
-    update = Update.de_json(data, bot_app.bot)
-    await bot_app.process_update(update)
-    return {"ok": True}
+    try:
+        data = await request.json()
+        logger.info(f"Kapott webhook payload: {data}")  # Naplózza a beérkező adatokat
+        update = Update.de_json(data, bot_app.bot)
+        await bot_app.process_update(update)
+        return {"ok": True}
+    except Exception as e:
+        logger.exception("Hiba a webhook feldolgozásakor:")
+        return {"error": str(e)}
+
