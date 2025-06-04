@@ -156,6 +156,7 @@ bot_app.add_handler(CommandHandler("traktorok", traktorok))
 
 @app.on_event("startup")
 async def on_startup():
+    await bot_app.initialize() 
     await bot_app.bot.set_webhook(url=WEBHOOK_URL + WEBHOOK_PATH)
 
 @app.post(WEBHOOK_PATH)
